@@ -1,7 +1,7 @@
 licenses(["notice"])  # Apache 2
 
 cc_library(
-    name = "openssl-crypto",
+    name = "openssl-lib",
     srcs = [
         "libcrypto.so.1.1",
     ],

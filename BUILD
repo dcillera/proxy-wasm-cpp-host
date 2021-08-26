@@ -39,15 +39,6 @@ cc_library(
 )
 
 cc_library(
-    name = "openssl-crypto",
-    srcs = [
-        "libcrypto.so.1.1",
-    ],
-    visibility = ["//visibility:public"],
-    linkstatic=False,
-)
-
-cc_library(
     name = "base_lib",
     srcs = [
         "src/bytecode_util.cc",
@@ -67,7 +58,7 @@ cc_library(
     ],
     deps = [
         ":headers",
-        "@openssl//:openssl-crypto",
+        "@openssl//:openssl-lib",
     ],
 )
 

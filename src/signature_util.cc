@@ -17,7 +17,7 @@
 #include <array>
 #include <cstring>
 
-#include <openssl/curve25519.h>
+#include <openssl/evp.h>
 #include <openssl/sha.h>
 
 #include "include/proxy-wasm/bytecode_util.h"
@@ -90,6 +90,7 @@ bool SignatureUtil::verifySignature(std::string_view bytecode, std::string &mess
   }
 
   const auto *signature = reinterpret_cast<const uint8_t *>(payload.data()) + sizeof(uint32_t);
+  const auto sig_len = payload.size() - sizeof(uint32_t); 
 
   SHA512_CTX ctx;
   SHA512_Init(&ctx);
@@ -103,13 +104,28 @@ bool SignatureUtil::verifySignature(std::string_view bytecode, std::string &mess
 
   static const auto ed25519_pubkey = hex2pubkey<32>(PROXY_WASM_VERIFY_WITH_ED25519_PUBKEY);
 
-  if (!ED25519_verify(hash, sizeof(hash), signature, ed25519_pubkey.data())) {
+  bool retval = true;
+  EVP_MD_CTX* mctx(EVP_MD_CTX_new());
+  EVP_PKEY* key(EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, static_cast<const unsigned char*>(ed25519_pubkey.data()), ed25519_pubkey.size()));
+
+  if (key == nullptr) {
+    message = "Failed to load ed25519 public key";
+    retval = false;
+  }
+  if (retval && (1 != EVP_DigestVerifyInit(mctx, NULL, NULL, NULL, key))) {
+    message = "Failed to initialize ed25519 digest verify";
+    retval = false;
+  }
+  if (retval && !EVP_DigestVerify(mctx, signature, sig_len, hash, sizeof(hash))) { 
     message = "Signature mismatch";
-    return false;
+    retval = false;
   }
 
-  message = "Wasm signature OK (Ed25519)";
-  return true;
+  EVP_PKEY_free(key);
+  EVP_MD_CTX_free(mctx);
+
+  if (retval) message = "Wasm signature OK (Ed25519)";
+  return retval;
 
 #endif
 
